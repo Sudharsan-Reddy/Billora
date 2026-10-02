@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 
 export interface UserProfile {
@@ -65,39 +70,78 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = "billora_auth_user";
+const AUTH_EVENT = "billora_auth_change";
+
+function subscribeToAuth(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", callback);
+  window.addEventListener(AUTH_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(AUTH_EVENT, callback);
+  };
+}
+
+let cachedRawUser: string | null = null;
+let cachedUser: UserProfile | null = null;
+
+function getClientUserSnapshot(): UserProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === cachedRawUser) {
+      return cachedUser;
+    }
+    cachedRawUser = raw;
+    cachedUser = raw ? (JSON.parse(raw) as UserProfile) : null;
+    return cachedUser;
+  } catch {
+    return null;
+  }
+}
+
+function getServerUserSnapshot(): UserProfile | null {
+  return null;
+}
+
+const emptySubscribe = () => () => {};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Sync with localStorage without triggering setState in useEffect
+  const user = useSyncExternalStore(
+    subscribeToAuth,
+    getClientUserSnapshot,
+    getServerUserSnapshot
+  );
+
+  // Safe SSR hydration status
+  const isHydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setUser(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load user session", e);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const isLoading = !isHydrated || isActionLoading;
 
   const saveUser = (userData: UserProfile | null) => {
-    setUser(userData);
-    if (userData) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== "undefined") {
+      if (userData) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      window.dispatchEvent(new Event(AUTH_EVENT));
     }
   };
 
   const login = async (email: string, _pass: string): Promise<boolean> => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     // Simulate brief network delay
     await new Promise((res) => setTimeout(res, 400));
-    
+
     // Check if we already have a customized profile in storage or use default
     const existing = localStorage.getItem(STORAGE_KEY);
     let currentUser = DEFAULT_USER;
@@ -112,13 +156,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     saveUser(currentUser);
-    setIsLoading(false);
+    setIsActionLoading(false);
     router.push("/dashboard");
     return true;
   };
 
   const register = async (name: string, email: string, _pass: string, company: string): Promise<boolean> => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     await new Promise((res) => setTimeout(res, 400));
 
     const initials = name
@@ -139,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     saveUser(newUser);
-    setIsLoading(false);
+    setIsActionLoading(false);
     router.push("/dashboard");
     return true;
   };
@@ -176,11 +220,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...updatedData,
       avatarInitials: updatedData.name
         ? updatedData.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2)
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
         : user.avatarInitials,
     };
     saveUser(updated);
