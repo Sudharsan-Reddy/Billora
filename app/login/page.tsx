@@ -172,11 +172,10 @@ export default function LoginPage() {
                   setMode("login");
                   setErrorMessage("");
                 }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  mode === "login"
-                    ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${mode === "login"
+                    ? "bg-indigo-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-                }`}
+                  }`}
               >
                 Sign In
               </button>
@@ -186,11 +185,10 @@ export default function LoginPage() {
                   setMode("register");
                   setErrorMessage("");
                 }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  mode === "register"
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${mode === "register"
                     ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-                }`}
+                  }`}
               >
                 Create Account
               </button>
