@@ -138,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, _pass: string): Promise<boolean> => {
+    void _pass;
     setIsActionLoading(true);
     // Simulate brief network delay
     await new Promise((res) => setTimeout(res, 400));
@@ -162,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, email: string, _pass: string, company: string): Promise<boolean> => {
+    void _pass;
     setIsActionLoading(true);
     await new Promise((res) => setTimeout(res, 400));
 
